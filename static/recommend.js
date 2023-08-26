@@ -1,14 +1,7 @@
-// Replace 'YOUR_API_KEY' below with your API key retrieved from https://www.themoviedb.org
-var myAPI = 'YOUR_API_KEY'  // global string to be consistent with future usages elsewhere
 $(function() {
-  $('#movie_list').css('display','none');
-  $('#autoComplete').blur(function() {
-    $('#movie_list').css('display','none');
-  });
   // Button will be disabled until we type something inside the input field
   const source = document.getElementById('autoComplete');
   const inputHandler = function(e) {
-    $('#movie_list').css('display','block');
     if(e.target.value==""){
       $('.movie-button').attr('disabled', true);
     }
@@ -27,9 +20,8 @@ $(function() {
   })
 
   $('.movie-button').on('click',function(){
-    var my_api_key = myAPI;
+    var my_api_key = '5b81f63328ca5d82e9317d9309e5ce9c';
     var title = $('.movie').val();
-    $('#movie_list').css('display','none');
     if (title=="") {
       $('.results').css('display','none');
       $('.fail').css('display','block');
@@ -40,43 +32,28 @@ $(function() {
     }
 
     else{
-      load_details(my_api_key,title,true);
+      load_details(my_api_key,title);
     }
   });
 });
 
 // will be invoked when clicking on the recommended movie cards
-function recommendcard(id){
+function recommendcard(e){
   $("#loader").fadeIn();
-  var my_api_key = myAPI;
-  // var title = e.getAttribute('title'); 
-  load_details(my_api_key,id,false);
+  var my_api_key = '5b81f63328ca5d82e9317d9309e5ce9c';
+  var title = e.getAttribute('title'); 
+  load_details(my_api_key,title);
 }
 
 
 // get the details of the movie from the API (based on the name of the movie)
-function load_details(my_api_key,search,isQuerySearch){
-  if(isQuerySearch) {
-    url = 'https://api.themoviedb.org/3/search/movie?api_key='+my_api_key+'&query='+search;
-  }
-  else {
-    url = 'https://api.themoviedb.org/3/movie/' + search + '?api_key='+my_api_key;
-  }
+function load_details(my_api_key,title){
   $.ajax({
     type: 'GET',
-    url:url,
+    url:'https://api.themoviedb.org/3/search/movie?api_key='+my_api_key+'&query='+title,
     async: false,
     success: function(movie){
-      if(!isQuerySearch) {
-        $("#loader").fadeIn();
-        $('.fail').css('display','none');
-        $('.results').delay(1000).css('display','block');
-        var movie_id = movie.id;
-        var movie_title = movie.title;
-        var movie_title_org = movie.original_title;
-        get_movie_details(movie_id,my_api_key,movie_title,movie_title_org);
-      }
-      else if(movie.results.length<1){
+      if(movie.results.length<1){
         $('.fail').css('display','block');
         $('.results').css('display','none');
         $("#loader").delay(500).fadeOut();
@@ -91,35 +68,33 @@ function load_details(my_api_key,search,isQuerySearch){
         get_movie_details(movie_id,my_api_key,movie_title,movie_title_org);
       }
       else{
+        var close_match = {};
+        var flag=0;
+        var movie_id="";
+        var movie_title="";
+        var movie_title_org="";
         $("#loader").fadeIn();
         $('.fail').css('display','none');
         $('.results').delay(1000).css('display','block');
-
-        details = {
-          'movies_list': movie.results
-        }
-
-        $.ajax({
-          type:'POST',
-          data:JSON.stringify(details),
-          beforeSend: function() {
-            $("#loader").fadeIn();
-          },
-          url:"/populate-matches",
-          dataType: 'html',
-          complete: function(){
-            $("#loader").delay(1000).fadeOut();
-          },
-          success: function(response) {
-            $('.results').delay(2000).html(response);
-            $('#autoComplete').val('');
-            $('.footer').css('position','relative');
-            $('.social').css('padding-bottom','15px');
-            $('.social').css('margin-bottom','0px');
-            $(window).scrollTop(0);
+        for(var count in movie.results){
+          if(title==movie.results[count].original_title){
+            flag = 1;
+            movie_id = movie.results[count].id;
+            movie_title = movie.results[count].title;
+            movie_title_org = movie.results[count].original_title;
+            break;
           }
-        });
-
+          else{
+            close_match[movie.results[count].title] = similarity(title,  movie.results[count].title);
+          }
+        }
+        if(flag==0){
+          movie_title = Object.keys(close_match).reduce(function(a, b){ return close_match[a] > close_match[b] ? a : b });
+          var index = Object.keys(close_match).indexOf(movie_title)
+          movie_id = movie.results[index].id;
+          movie_title_org = movie.results[index].original_title;
+        }
+        get_movie_details(movie_id,my_api_key,movie_title,movie_title_org);
       }
     },
     error: function(error){
@@ -127,6 +102,48 @@ function load_details(my_api_key,search,isQuerySearch){
       $("#loader").delay(500).fadeOut();
     },
   });
+}
+
+// getting closest match to the requested movie name using Levenshtein distance
+function similarity(s1, s2) {
+  var longer = s1;
+  var shorter = s2;
+  if (s1.length < s2.length) {
+    longer = s2;
+    shorter = s1;
+  }
+  var longerLength = longer.length;
+  if (longerLength == 0) {
+    return 1.0;
+  }
+  return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+}
+
+function editDistance(s1, s2) {
+  s1 = s1.toLowerCase();
+  s2 = s2.toLowerCase();
+
+  var costs = new Array();
+  for (var i = 0; i <= s1.length; i++) {
+    var lastValue = i;
+    for (var j = 0; j <= s2.length; j++) {
+      if (i == 0)
+        costs[j] = j;
+      else {
+        if (j > 0) {
+          var newValue = costs[j - 1];
+          if (s1.charAt(i - 1) != s2.charAt(j - 1))
+            newValue = Math.min(Math.min(newValue, lastValue),
+              costs[j]) + 1;
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0)
+      costs[s2.length] = lastValue;
+  }
+  return costs[s2.length];
 }
 
 // get all the details of the movie using the movie id.
@@ -205,8 +222,7 @@ function show_details(movie_details,movie_title,my_api_key,movie_id,movie_title_
       'rec_posters':JSON.stringify(recommendations.rec_posters),
       'rec_movies_org':JSON.stringify(recommendations.rec_movies_org),
       'rec_year':JSON.stringify(recommendations.rec_year),
-      'rec_vote':JSON.stringify(recommendations.rec_vote),
-      'rec_ids':JSON.stringify(recommendations.rec_ids)
+      'rec_vote':JSON.stringify(recommendations.rec_vote)
   }
 
   $.ajax({
@@ -307,7 +323,6 @@ function get_movie_cast(movie_id,my_api_key){
     rec_movies_org = [];
     rec_year = [];
     rec_vote = [];
-    rec_ids = [];
     
     $.ajax({
       type: 'GET',
@@ -319,7 +334,6 @@ function get_movie_cast(movie_id,my_api_key){
           rec_movies_org.push(recommend.results[recs].original_title);
           rec_year.push(new Date(recommend.results[recs].release_date).getFullYear());
           rec_vote.push(recommend.results[recs].vote_average);
-          rec_ids.push(recommend.results[recs].id)
           if(recommend.results[recs].poster_path){
             rec_posters.push("https://image.tmdb.org/t/p/original"+recommend.results[recs].poster_path);
           }
@@ -333,5 +347,5 @@ function get_movie_cast(movie_id,my_api_key){
         $("#loader").delay(500).fadeOut();
       }
     });
-    return {rec_movies:rec_movies,rec_movies_org:rec_movies_org,rec_posters:rec_posters,rec_year:rec_year,rec_vote:rec_vote,rec_ids:rec_ids};
+    return {rec_movies:rec_movies,rec_movies_org:rec_movies_org,rec_posters:rec_posters,rec_year:rec_year,rec_vote:rec_vote};
   }
