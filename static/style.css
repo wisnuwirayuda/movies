@@ -10,7 +10,7 @@
  
 /* Handle */
 ::-webkit-scrollbar-thumb {
-  background: #e50914; 
+  background: #F9D949; 
   border-radius: 10px;
 }
 
@@ -61,7 +61,7 @@
 
 .footer {
 	color: #e4e0e0;
-	background-color: #e50914d1;
+	background-color: #F9D949d1;
 	text-align:center;
 	position: fixed;
 	bottom: 0;
@@ -74,7 +74,7 @@
 
 h1 {
     font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    color: #e50914;
+    color: #F9D949;
     font-weight: bold;
     margin-top: 30px;
     text-shadow: #000000 0px 0px 13px;
@@ -87,7 +87,7 @@ h1 {
 .fa-arrow-up {
 	font-size: 1.5em;
 	color: #ffffff;
-    background: #e50914;
+    background: #F9D949;
     padding: 10px;
 	border-radius: 50%;
 	float: right;
@@ -177,7 +177,7 @@ h6 {
 	.fa-arrow-up{
 		font-size: 1em;
 		color: #ffffff;
-		background: #e50914;
+		background: #F9D949;
 		padding: 10px;
 		border-radius: 50%;
 		float: right;
